@@ -59,7 +59,7 @@ AWS_PUBLIC = ''   # AWS Access Key ID
 AWS_SECRET = ''   # AWS Secret Access Key
 ```
 
-Populate these before running. For better security, consider using environment variables or a `.env` file with `python-dotenv` (the import is already present but commented out).
+The credentials are popuulated in `python-dotenv` (the import is already present but commented out).
 
 ```bash
 # .env example
