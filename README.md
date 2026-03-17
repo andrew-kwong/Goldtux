@@ -86,19 +86,19 @@ A bilingual (English/Spanish) command-line application for Goldtux staff. Run at
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│                    CRM & SCHEDULING                       │
-│  GHL Workflow → index.js Lambda                          │
-│  • Creates/updates customer records in DynamoDB          │
-│  • Books pickup & delivery appointments via GHL API      │
-│  • Sends scheduling notifications via GHL webhooks       │
+│                    CRM & SCHEDULING                     │
+│  GHL Workflow → index.js Lambda                         │
+│  • Creates/updates customer records in DynamoDB         │
+│  • Books pickup & delivery appointments via GHL API     │
+│  • Sends scheduling notifications via GHL webhooks      │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│                   ON-SITE OPERATIONS                      │
-│  Staff runs nfc_reader.py                                │
-│  • Scans NFC tag → reads customer identity               │
-│  • Verifies membership in DynamoDB                       │
-│  • Records laundry video → uploads to S3                 │
+│                   ON-SITE OPERATIONS                    │
+│  Staff runs nfc_reader.py                               │
+│  • Scans NFC tag → reads customer identity              │
+│  • Verifies membership in DynamoDB                      │
+│  • Records laundry video → uploads to S3                │
 └─────────────────────────────────────────────────────────┘
 ```
 
