@@ -22,8 +22,8 @@ The Goldtux system is composed of three interconnected components:
 
 | File | Type | Role |
 |---|---|---|
-| `index-2.js` | AWS Lambda | Stripe webhook handler — processes payments and triggers new member onboarding |
-| `index.js` | AWS Lambda | GoHighLevel webhook handler — manages scheduling, appointments, and CRM pipeline events |
+| `stripe_index.js` | AWS Lambda | Stripe webhook handler — processes payments and triggers new member onboarding |
+| `gohighlevel_index.js` | AWS Lambda | GoHighLevel webhook handler — manages scheduling, appointments, and CRM pipeline events |
 | `nfc_reader.py` | Python CLI | On-site staff tool — scans NFC tags, verifies membership, records and uploads laundry videos |
 
 Together, these components automate the full customer journey from first payment through recurring pickup and delivery scheduling, with on-site video documentation at each service visit.
@@ -32,7 +32,7 @@ Together, these components automate the full customer journey from first payment
 
 ## Components
 
-### 1. `index-2.js` — Stripe Payment Lambda
+### 1. `stripe_index.js` — Stripe Payment Lambda
 
 Triggered by Stripe webhook events. Handles new customer onboarding when a subscription payment succeeds:
 
@@ -45,7 +45,7 @@ Triggered by Stripe webhook events. Handles new customer onboarding when a subsc
 
 ---
 
-### 2. `index.js` — GoHighLevel Workflow Lambda
+### 2. `gohighlevel_index.js` — GoHighLevel Workflow Lambda
 
 Triggered by GoHighLevel CRM workflow webhooks. Routes logic based on the `workflow.name` field:
 
@@ -78,11 +78,11 @@ A bilingual (English/Spanish) command-line application for Goldtux staff. Run at
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      CUSTOMER SIGNUP                      │
-│  Stripe Payment → index-2.js Lambda                      │
-│  • Writes membership to DynamoDB                         │
-│  • Sends NFC provisioning data to GHL                    │
-│  • Creates S3 video folder                               │
+│                      CUSTOMER SIGNUP                    │
+│  Stripe Payment → stripe_index.js Lambda                │
+│  • Writes membership to DynamoDB                        │
+│  • Sends NFC provisioning data to GHL                   │
+│  • Creates S3 video folder                              │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
@@ -110,10 +110,10 @@ A bilingual (English/Spanish) command-line application for Goldtux staff. Run at
 |---|---|---|
 | DynamoDB Table | `GoldtuxCustomers` | All three components |
 | DynamoDB GSI | `GHLContactIndex` (on `contact_id`) | All three components |
-| S3 Bucket | `goldtux-video-insurance` | `index-2.js`, `nfc_reader.py` |
-| S3 Key Pattern | `customers/{ghl_contact_id}/` | `index-2.js`, `nfc_reader.py` |
-| Secrets Manager | `StripeLive` → `stripe_secret_live` | `index-2.js` |
-| Secrets Manager | `GoldtuxKey` → `goldtux_secret` | `index.js`, `index-2.js` |
+| S3 Bucket | `goldtux-video-insurance` | `stripe_index.js`, `nfc_reader.py` |
+| S3 Key Pattern | `customers/{ghl_contact_id}/` | `stripe_index.js`, `nfc_reader.py` |
+| Secrets Manager | `StripeLive` → `stripe_secret_live` | `stripe_index.js` |
+| Secrets Manager | `GoldtuxKey` → `goldtux_secret` | `index.js`, `stripe_index.js` |
 | AWS Region | `us-east-1` | All three components |
 
 ### DynamoDB Customer Record
@@ -122,16 +122,16 @@ Key fields stored across all components:
 
 | Field | Set By | Description |
 |---|---|---|
-| `customer_uuid` | `index.js` | Primary key (UUID v4) |
-| `contact_id` | `index.js` | GoHighLevel contact ID (GSI key) |
-| `stripe_id` | `index-2.js` | Stripe customer ID |
-| `stripe_transaction_id` | `index-2.js` | Stripe event ID |
-| `subscription_id` | `index-2.js` | Stripe subscription ID |
-| `current_membership_status` | `index-2.js` | Active plan name |
-| `pickup_day` / `pickup_time` | `index.js` | Recurring pickup schedule |
-| `delivery_day` / `delivery_time` | `index.js` | Recurring delivery schedule |
-| `pickup_appointment_id` | `index.js` | GHL calendar appointment ID |
-| `delivery_appointment_id` | `index.js` | GHL calendar appointment ID |
+| `customer_uuid` | `gohighlevel_index.js` | Primary key (UUID v4) |
+| `contact_id` | `gohighlevel_index.js` | GoHighLevel contact ID (GSI key) |
+| `stripe_id` | `stripe_index.js` | Stripe customer ID |
+| `stripe_transaction_id` | `stripe_index.js` | Stripe event ID |
+| `subscription_id` | `stripe_index.js` | Stripe subscription ID |
+| `current_membership_status` | `stripe_index.js` | Active plan name |
+| `pickup_day` / `pickup_time` | `gohighlevel_index.js` | Recurring pickup schedule |
+| `delivery_day` / `delivery_time` | `gohighlevel_index.js` | Recurring delivery schedule |
+| `pickup_appointment_id` | `gohighlevel_index.js` | GHL calendar appointment ID |
+| `delivery_appointment_id` | `gohighlevel_index.js` | GHL calendar appointment ID |
 
 ---
 
@@ -141,7 +141,7 @@ Key fields stored across all components:
 1. Customer signs up and pays via Stripe
         │
         ▼
-2. index-2.js processes invoice.payment_succeeded
+2. stripe_index.js processes invoice.payment_succeeded
    → Resolves GHL contact ID
    → Updates DynamoDB with membership & Stripe fields
    → Sends NFC provisioning payload to GHL
@@ -173,18 +173,18 @@ Key fields stored across all components:
 
 ## Setup & Configuration
 
-### Lambda Functions (`index.js`, `index-2.js`)
+### Lambda Functions (`gohighlevel_index.js`, `stripe_index.js`)
 
 Both functions require the following to be configured before deployment:
 
-**`index.js`** — set directly in the file:
+**`gohighlevel_index.js`** — set directly in the file:
 ```javascript
 const authHeader = ''  // Expected Authorization header value
 const hostHeader = ''  // Expected Host header value
 const secret_name = '' // Secrets Manager secret name for GoldtuxKey
 ```
 
-**`index-2.js`** — uses named Secrets Manager secrets:
+**`stripe_index.js`** — uses named Secrets Manager secrets:
 - `StripeLive` containing `{ "stripe_secret_live": "sk_live_..." }`
 - `GoldtuxKey` containing `{ "goldtux_secret": "..." }`
 
